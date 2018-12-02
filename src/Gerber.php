@@ -234,7 +234,7 @@ class Gerber
 
     private function extractZip($fileName)
     {
-        $zip = new ZipArchive();
+        $zip = new \ZipArchive();
         if($zip->open($fileName) === true)
         {
             $zip->extractTo($this->unzipTemp."/".$this->unzipFolder);
@@ -336,7 +336,7 @@ class Gerber
         //trim silk that goes out of actual PCB
         if($trim)
         {
-            $im = new Imagick($this->imageTemp."/".$this->imageFolder."/".$outputFile);
+            $im = new \Imagick($this->imageTemp."/".$this->imageFolder."/".$outputFile);
             $im->trimImage(0);
             $im->writeImage();
         }
@@ -367,7 +367,7 @@ class Gerber
 
     private function sizeFromImage($image)
     {
-        $im = new Imagick($this->imageTemp.$image);
+        $im = new \Imagick($this->imageTemp.$image);
         $im->trimImage(0);
         $d = $im->getImageGeometry();
         return ['x' => ($d['width']/$this->dpi)*25.4,
