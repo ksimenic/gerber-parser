@@ -1,7 +1,10 @@
 <?php
-require_once('tokenizer.php');
 
-class parser
+namespace Igloo\Gerber\Lib;
+
+use Igloo\Gerber\Lib\Tokenizer;
+
+class Parser
 {
     private $tokenizer;
     private $attribute = false;
@@ -18,7 +21,7 @@ class parser
     
     public function __construct($filename)
     {
-        $this->tokenizer = new tokenizer($filename);
+        $this->tokenizer = new Tokenizer($filename);
     }
 
     public function getNext()

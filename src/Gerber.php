@@ -1,9 +1,12 @@
-<?php
-require_once('size.php');
+<?php 
 
-class gerber
+namespace Igloo\Gerber;
+
+use Igloo\Gerber\Lib\Size;
+
+class Gerber
 {
-    private $unzipTemp = '../temp/';
+    private $unzipTemp;
     private $imageTemp;
         
     private $dpi = 1000;
@@ -15,10 +18,12 @@ class gerber
     private $size = null; 
     private $layers = null;
     private $image = null;
+    private $imageLayers = null;
     
-    public function  __construct($zipFile, $imageDir)
+    public function  __construct($zipFile, $imageDir = null)
     {
-        $this->imageTemp = $imageDir;
+        $this->unzipTemp = sys_get_temp_dir();
+        $this->imageTemp = ($imageDir) ?: sys_get_temp_dir();
         $this->unzipFolder = $this->createTempDir($this->unzipTemp);
         $this->imageFolder = $this->createTempDir($this->imageTemp);
         $this->extractZip($zipFile);
@@ -69,7 +74,7 @@ class gerber
         if($files['outline'])
         {
             $outlineFile = $this->unzipTemp."/".$this->unzipFolder."/".$files['outline'];
-            $sizeParser = new size($outlineFile);
+            $sizeParser = new Size($outlineFile);
             $size = $sizeParser->getSize();
 
             if($size['units'] == "inches")
@@ -94,7 +99,7 @@ class gerber
                 if($file === null || $type == "drills" || $type == "top silk" || $type == "bottom silk")
                     continue;
                 
-                $sizeParser = new size($this->unzipTemp."/".$this->unzipFolder."/".$file);
+                $sizeParser = new Size($this->unzipTemp."/".$this->unzipFolder."/".$file);
                 $fileSize = $sizeParser->getSize();
                  if($fileSize["units"] === "inches")
                      $fileSize = $this->convertToMM($fileSize);

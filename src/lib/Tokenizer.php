@@ -1,5 +1,9 @@
 <?php
-class tokenizer{
+
+namespace Igloo\Gerber\Lib;
+
+class Tokenizer 
+{
     private $file;
     private $attribute = false;
     

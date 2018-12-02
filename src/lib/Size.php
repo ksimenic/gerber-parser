@@ -1,7 +1,10 @@
 <?php
-require_once('parser.php');
 
-class size
+namespace Igloo\Gerber\Lib;
+
+use Igloo\Gerber\Lib\Parser;
+
+class Size
 {
     private $aperitures = array();
     private $macros = array();
@@ -17,7 +20,7 @@ class size
     
     public function __construct($filename)
     {
-        $this->parser = new parser($filename);
+        $this->parser = new Parser($filename);
     }
 
     public function getSize()

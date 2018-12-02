@@ -1,0 +1,25 @@
+{
+    "name": "igloo/gerber-parser",
+    "description": "Parses gerber ZIP archive to get dimensions, number of layers and images by layers.",
+    "keywords": ["gerber", "parser"],
+    "type": "library",
+    "require": {
+        "php": "7.2.*",
+        "ext-imagick": "*",
+        "ext-zip": "*"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Igloo",
+            "email": "contact@igloo.hr",
+            "homepage": "https://igloo.hr"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "Igloo\\Gerber\\": "src/"
+        }
+}
+}
