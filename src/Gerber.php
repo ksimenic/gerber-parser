@@ -55,6 +55,10 @@ class Gerber
     {
         $this->unzipTemp = sys_get_temp_dir();
         $this->imageTemp = ($imageDir) ?: sys_get_temp_dir();
+        
+        if(substr($this->imageTemp, -1) === "/")
+            $this->imageTemp = substr($this->imageTemp, 0, -1);
+        
         $this->unzipFolder = $this->createTempDir($this->unzipTemp);
         $this->imageFolder = $this->createTempDir($this->imageTemp);
         $this->extractZip($zipFile);
@@ -286,7 +290,7 @@ class Gerber
         do
         {
             $rand = bin2hex(random_bytes(10));
-            $folder = $base.$rand;
+            $folder = $base."/".$rand;
         }while(!mkdir($folder, 0777, true));
          
         return $rand;
