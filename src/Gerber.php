@@ -22,7 +22,10 @@ class Gerber
 
 
     private $files = null;
-    
+
+    //default background color
+    private $background = "#f8fafc";
+
     public function  __construct($zipFile, $imageDir = null)
     {
         $this->unzipTemp = sys_get_temp_dir();
@@ -285,13 +288,13 @@ class Gerber
 
     private function genImage($files)
     {
-        $topOrder = ["top silk" =>  "#FFFFFF",
+        $topOrder = ["top silk" => $this->background,
                      "top paste" =>  "#B87333",
                      "top solder" => "#00FF00",
                      "top" => "#1ba716",];
         $top = $this->renderImage($files, $topOrder, "board_top.png", true);
 
-        $bottomOrder = ["bottom silk" =>  "#FFFFFF",
+        $bottomOrder = ["bottom silk" =>  $this->background,
                         "bottom paste" =>  "#B87333",
                         "bottom solder" => "#00FF00",
                         "bottom" => "#1ba716",];
@@ -353,7 +356,7 @@ class Gerber
     {
         $exe = $this->gerbvPath;
         $exe .= " --dpi=".$this->dpi;
-        $exe .= " --background=#FFFFFF";
+        $exe .= " --background=".$this->background;
         $exe .= " --export=png";
         $exe .= " --output=\"".$this->imageTemp."/".$this->imageFolder."/".$output."\" ";
         $exe .= $files;
