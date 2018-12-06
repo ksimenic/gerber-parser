@@ -26,6 +26,13 @@ class Gerber
     //default background color
     private $background = "#f8fafc";
 
+    //colors that top and bottom images will be rendered in
+    private $renderColors = [
+        "green" => "#00FF00",
+        "blue" => "#0000FF",
+        "yellow" => "#FFFF00",
+    ];
+    
     public function  __construct($zipFile, $imageDir = null)
     {
         $this->unzipTemp = sys_get_temp_dir();
@@ -142,7 +149,7 @@ class Gerber
             //images in test file differ in width by 1px
             /*print_r($this->sizeFromImage($images['board']['top']));
               print_r($this->sizeFromImage($images['board']['bottom']));*/
-            return $this->sizeFromImage($images['board']['top']);
+            return $this->sizeFromImage($images['board'][key($images['board'])]['top']);
         }
     }
 
@@ -288,17 +295,21 @@ class Gerber
 
     private function genImage($files)
     {
-        $topOrder = ["top silk" => $this->background,
-                     "top paste" =>  "#B87333",
-                     "top solder" => "#00FF00",
-                     "top" => "#1ba716",];
-        $top = $this->renderImage($files, $topOrder, "board_top.png", true);
+        $board = array();
+        foreach($this->renderColors as $color => $colorCode)
+        {
+            $topOrder = ["top silk" => $this->background,
+                         "top paste" => "#B87333",
+                         "top solder" => $colorCode,
+                         "top" => $colorCode,];
+            $board[$color]["top"] = $this->renderImage($files, $topOrder, "board_top_".$color.".png", true);
 
-        $bottomOrder = ["bottom silk" =>  $this->background,
-                        "bottom paste" =>  "#B87333",
-                        "bottom solder" => "#00FF00",
-                        "bottom" => "#1ba716",];
-        $bottom = $this-> renderImage($files, $bottomOrder, "board_bottom.png", true);
+            $bottomOrder = ["bottom silk" =>  $this->background,
+                            "bottom paste" =>  "#B87333",
+                            "bottom solder" => $colorCode,
+                            "bottom" => $colorCode,];
+            $board[$color]["bottom"] = $this-> renderImage($files, $bottomOrder, "board_bottom_".$color.".png", true);
+        }
 
         $layers = [
             "slots" => "#000000",
@@ -323,8 +334,7 @@ class Gerber
             $layerImages[$layer] = $img;
         }
         
-        return ['board' =>['top' => $top,
-                           'bottom' => $bottom,],
+        return ['board' => $board,
                 'layers' => $layerImages];
     }
 
