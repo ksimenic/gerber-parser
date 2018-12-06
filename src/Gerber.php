@@ -19,6 +19,9 @@ class Gerber
     private $layers = null;
     private $image = null;
     private $imageLayers = null;
+
+
+    private $files = null;
     
     public function  __construct($zipFile, $imageDir = null)
     {
@@ -30,23 +33,26 @@ class Gerber
         
         $files = array();
         $this->getFiles($this->unzipTemp."/".$this->unzipFolder, $files);
-        $files = $this->separateFiles($files);
-        
-        $image = $this->genImage($files["files"]);
-        $size = $this->determineSize($files["files"]);
-        
-        $imgSize = $this->determineSizeFromImage($image);
-        $this->size = ['file' => $size,
-                       'image' => $imgSize];
-        
-        $this->layers = $files["layers"];
-        $this->image = $image["board"];
-        $this->imageLayers = $image["layers"];
+        $this->files = $this->separateFiles($files);
+        $this->layers = $this->files["layers"];
     }
 
     public function __destruct()
     {
         $this->removeDir($this->unzipTemp."/".$this->unzipFolder);
+    }
+
+    public function process()
+    {
+        $image = $this->genImage($this->files["files"]);
+        $size = $this->determineSize($this->files["files"]);
+        
+        $imgSize = $this->determineSizeFromImage($image);
+        $this->size = ['file' => $size,
+                       'image' => $imgSize];
+        
+        $this->image = $image["board"];
+        $this->imageLayers = $image["layers"];
     }
     
     public function getSize()
