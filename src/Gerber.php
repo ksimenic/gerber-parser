@@ -9,7 +9,6 @@ class Gerber
     private $unzipTemp;
     private $imageTemp;
         
-    private $dpi = 1000;
     private $gerbvPath = "gerbv";
     
     private $unzipFolder = null;
@@ -27,10 +26,29 @@ class Gerber
     private $background = "#f8fafc";
 
     //colors that top and bottom images will be rendered in
-    private $renderColors = [
+    private $boardRenderColors = [
         "green" => "#00FF00",
         "blue" => "#0000FF",
         "yellow" => "#FFFF00",
+    ];
+
+    private $layerRenderColors = [
+        "slots" => "#000000",
+        "top" => "#000000",
+        "bottom" => "#000000",
+        "internal 1" => "#000000",
+        "internal 2" => "#000000",
+        "top solder" => "#000000",
+        "bottom solder" => "#000000",
+        "top paste" => "#000000",
+        "bottom paste" => "#000000",
+        "outline" => "#000000",
+    ];
+
+    //dpi by layers that should be different than default dpi
+    private $dpi = [
+        "board" => 1000,
+        "layers" => 1000,
     ];
     
     public function  __construct($zipFile, $imageDir = null)
@@ -43,8 +61,9 @@ class Gerber
         
         $files = array();
         $this->getFiles($this->unzipTemp."/".$this->unzipFolder, $files);
-        $this->files = $this->separateFiles($files);
-        $this->layers = $this->files["layers"];
+        $separated = $this->separateFiles($files);
+        $this->files = $separated["files"];
+        $this->layers = $separated["layers"];
     }
 
     public function __destruct()
@@ -54,8 +73,8 @@ class Gerber
 
     public function process()
     {
-        $image = $this->genImage($this->files["files"]);
-        $size = $this->determineSize($this->files["files"]);
+        $image = $this->genImage($this->files);
+        $size = $this->determineSize($this->files);
         
         $imgSize = $this->determineSizeFromImage($image);
         $this->size = ['file' => $size,
@@ -142,14 +161,16 @@ class Gerber
     {
         if(array_key_exists('outline', $images['layers']))
         {
-            return $this->sizeFromImage($images['layers']['outline']);
+            $dpi = $this->dpi["layers"];
+            return $this->sizeFromImage($images['layers']['outline'], $dpi);
         }
         else
         {
             //images in test file differ in width by 1px
             /*print_r($this->sizeFromImage($images['board']['top']));
               print_r($this->sizeFromImage($images['board']['bottom']));*/
-            return $this->sizeFromImage($images['board'][key($images['board'])]['top']);
+            $dpi = $this->dpi["board"];
+            return $this->sizeFromImage($images['board'][key($images['board'])]['top'], $dpi);
         }
     }
 
@@ -295,61 +316,63 @@ class Gerber
 
     private function genImage($files)
     {
-        $board = array();
-        foreach($this->renderColors as $color => $colorCode)
+        return ['board' => $this->genBoardImages(),
+                'layers' => $this->genLayerImages()];
+    }
+
+    private function genBoardImages()
+    {
+        $boardImages = array();
+        $dpi = $this->dpi["board"];
+        foreach($this->boardRenderColors as $color => $colorCode)
         {
+            //render top
             $topOrder = ["top silk" => $this->background,
                          "top paste" => "#B87333",
                          "top solder" => $colorCode,
                          "top" => $colorCode,];
-            $board[$color]["top"] = $this->renderImage($files, $topOrder, "board_top_".$color.".png", true);
+            $boardImages[$color]["top"] = $this->renderImage($this->files, $topOrder, "board_top_".$color.".png", $dpi, true);
 
+            //render bottom
             $bottomOrder = ["bottom silk" =>  $this->background,
                             "bottom paste" =>  "#B87333",
                             "bottom solder" => $colorCode,
                             "bottom" => $colorCode,];
-            $board[$color]["bottom"] = $this-> renderImage($files, $bottomOrder, "board_bottom_".$color.".png", true);
+            $boardImages[$color]["bottom"] = $this-> renderImage($this->files, $bottomOrder, "board_bottom_".$color.".png", $dpi, true);
         }
 
-        $layers = [
-            "slots" => "#000000",
-            "top" => "#000000",
-            "bottom" => "#000000",
-            "internal 1" => "#000000",
-            "internal 2" => "#000000",
-            "top solder" => "#000000",
-            "bottom solder" => "#000000",
-            "top paste" => "#000000",
-            "bottom paste" => "#000000",
-            "outline" => "#000000",
-        ];
-
-        $layerImages = array();
-        foreach($layers as $layer => $color)
-        {
-            if($files[$layer] === null)
-                continue;
-            $filename = str_replace(" ", "_", $layer).".png";
-            $img = $this->renderImage($files, [$layer => $color], $filename);
-            $layerImages[$layer] = $img;
-        }
-        
-        return ['board' => $board,
-                'layers' => $layerImages];
+        return $boardImages;
     }
 
-    function renderImage($files, $renderOrder, $outputFile, $trim=false)
+    private function genLayerImages()
     {
+        $layerImages = array();
+        $dpi = $this->dpi["layers"];
+        foreach($this->layerRenderColors as $layer => $color)
+        {
+            if($this->files[$layer] === null)
+                continue;
+            $filename = str_replace(" ", "_", $layer).".png";
+            $img = $this->renderImage($this->files, [$layer => $color], $filename, $dpi);
+            $layerImages[$layer] = $img;
+        }
+
+        return $layerImages;
+    }
+
+    function renderImage($files, $renderOrder, $outputFile, $dpi, $trim=false)
+    {   
         $allFiles = "";
+        
         foreach($renderOrder as $layer => $color)
         {
-            if($files[$layer] === null)
+            if($this->files[$layer] === null)
             {
                 continue;
             }
             $allFiles .= "--foreground=".$color." \"".$this->unzipTemp."/".$this->unzipFolder."/".$files[$layer]."\" ";
         }
-        $exe = $this->genExec($allFiles, $outputFile);
+        $exe = $this->genExec($allFiles, $outputFile, $dpi);
         shell_exec($exe);
 
         //trim silk that goes out of actual PCB
@@ -362,10 +385,10 @@ class Gerber
         return "/".$this->imageFolder."/".$outputFile;
     }
     
-    private function genExec($files, $output)
+    private function genExec($files, $output, $dpi)
     {
         $exe = $this->gerbvPath;
-        $exe .= " --dpi=".$this->dpi;
+        $exe .= " --dpi=".$dpi;
         $exe .= " --background=".$this->background;
         $exe .= " --export=png";
         $exe .= " --output=\"".$this->imageTemp."/".$this->imageFolder."/".$output."\" ";
@@ -384,13 +407,13 @@ class Gerber
                 'units' => 'millimeters'];
     }
 
-    private function sizeFromImage($image)
+    private function sizeFromImage($image, $dpi)
     {
         $im = new \Imagick($this->imageTemp.$image);
         $im->trimImage(0);
         $d = $im->getImageGeometry();
-        return ['x' => ($d['width']/$this->dpi)*25.4,
-                'y' => ($d['height']/$this->dpi)*25.4,
+        return ['x' => ($d['width']/$dpi)*25.4,
+                'y' => ($d['height']/$dpi)*25.4,
                 'units' =>"millimeters"];
     }
 }
