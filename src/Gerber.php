@@ -45,10 +45,9 @@ class Gerber
         "outline" => "#000000",
     ];
 
-    //dpi by layers that should be different than default dpi
     private $dpi = [
-        "board" => 1000,
-        "layers" => 1000,
+        "board" => 500,
+        "layers" => 500,
     ];
     
     public function  __construct($zipFile, $imageDir = null)
@@ -86,6 +85,83 @@ class Gerber
         
         $this->image = $image["board"];
         $this->imageLayers = $image["layers"];
+    }
+
+    public function setBoardDPI($dpi)
+    {
+        $this->dpi["board"] = $dpi;
+        return $dpi;
+    }
+
+    public function getBoardDPI($dpi)
+    {
+        return $this->dpi["board"];
+    }
+
+    public function setLayersDPI($dpi)
+    {
+        $this->dpi["layers"] = $dpi;
+        return $dpi;
+    }
+
+    public function getLayersDPI($dpi)
+    {
+        return $this->dpi["layers"];
+    }
+
+    public function setLayerColor($layer, $color)
+    {
+        if(array_key_exists($layer, $this->layerRenderColors))
+        {
+            $this->layerRenderColors[$layer] = $color;
+            return true;
+        }
+        return false;
+    }
+
+    public function getLayerColor($layer)
+    {
+        if(array_key_exists($layer, $this->layerRenderColors))
+        {
+            return $this->layerRenderColors[$layer];
+        }
+        return null;
+    }
+
+    public function setBoardRenderColor($name, $color)
+    {
+        $this->boardRenderColors[$name] = $color;
+        return $color;
+    }
+
+    public function getBoardRenderColor($name)
+    {
+        if(array_key_exists($name, $this->boardRenderColors))
+        {
+            return $this->boardRenderColors[$name];
+        }
+        return null;
+    }
+
+    public function removeBoardRenderColor($name)
+    {
+        if(array_key_exists($name, $this->boardRenderColors))
+        {
+            unset($this->boardRenderColors[$name]);
+            return true;
+        }
+        return false;
+    }
+
+    public function getBackground()
+    {
+        return $this->background;
+    }
+
+    public function setBackground($color)
+    {
+        $this->background = $color;
+        return $color;
     }
     
     public function getSize()
