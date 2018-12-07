@@ -77,7 +77,7 @@ class Gerber
 
     public function process()
     {
-        $image = $this->genImage($this->files);
+        $image = $this->genImage();
         $size = $this->determineSize($this->files);
         
         $imgSize = $this->determineSizeFromImage($image);
@@ -108,11 +108,11 @@ class Gerber
         return $this->imageLayers;
     } 
 
-    private function determineSize($files)
+    private function determineSize()
     {
-        if($files['outline'])
+        if($this->files['outline'])
         {
-            $outlineFile = $this->unzipTemp."/".$this->unzipFolder."/".$files['outline'];
+            $outlineFile = $this->unzipTemp."/".$this->unzipFolder."/".$this->files['outline'];
             $sizeParser = new Size($outlineFile);
             $size = $sizeParser->getSize();
 
@@ -133,7 +133,7 @@ class Gerber
             $minY = null;
             $maxY = null;
 
-            foreach($files as $type => $file)
+            foreach($this->files as $type => $file)
             {
                 if($file === null || $type == "drills" || $type == "top silk" || $type == "bottom silk")
                     continue;
@@ -161,7 +161,7 @@ class Gerber
         return null;
     }
 
-    private function determineSizeFromImage($images)
+    private function determineSizeFromImage(&$images)
     {
         if(array_key_exists('outline', $images['layers']))
         {
@@ -178,7 +178,7 @@ class Gerber
         }
     }
 
-    private function separateFiles($files)
+    private function separateFiles(&$files)
     {
         $filesArray = [
             "drills" => null,
@@ -318,7 +318,7 @@ class Gerber
         rmdir($folder);
     }
 
-    private function genImage($files)
+    private function genImage()
     {
         return ['board' => $this->genBoardImages(),
                 'layers' => $this->genLayerImages()];
@@ -335,14 +335,14 @@ class Gerber
                          "top paste" => "#B87333",
                          "top solder" => $colorCode,
                          "top" => $colorCode,];
-            $boardImages[$color]["top"] = $this->renderImage($this->files, $topOrder, "board_top_".$color.".png", $dpi, true);
+            $boardImages[$color]["top"] = $this->renderImage($topOrder, "board_top_".$color.".png", $dpi, true);
 
             //render bottom
             $bottomOrder = ["bottom silk" =>  $this->background,
                             "bottom paste" =>  "#B87333",
                             "bottom solder" => $colorCode,
                             "bottom" => $colorCode,];
-            $boardImages[$color]["bottom"] = $this-> renderImage($this->files, $bottomOrder, "board_bottom_".$color.".png", $dpi, true);
+            $boardImages[$color]["bottom"] = $this-> renderImage($bottomOrder, "board_bottom_".$color.".png", $dpi, true);
         }
 
         return $boardImages;
@@ -357,14 +357,14 @@ class Gerber
             if($this->files[$layer] === null)
                 continue;
             $filename = str_replace(" ", "_", $layer).".png";
-            $img = $this->renderImage($this->files, [$layer => $color], $filename, $dpi);
+            $img = $this->renderImage([$layer => $color], $filename, $dpi);
             $layerImages[$layer] = $img;
         }
 
         return $layerImages;
     }
 
-    function renderImage($files, $renderOrder, $outputFile, $dpi, $trim=false)
+    function renderImage($renderOrder, $outputFile, $dpi, $trim=false)
     {   
         $allFiles = "";
         
@@ -374,7 +374,7 @@ class Gerber
             {
                 continue;
             }
-            $allFiles .= "--foreground=".$color." \"".$this->unzipTemp."/".$this->unzipFolder."/".$files[$layer]."\" ";
+            $allFiles .= "--foreground=".$color." \"".$this->unzipTemp."/".$this->unzipFolder."/".$this->files[$layer]."\" ";
         }
         $exe = $this->genExec($allFiles, $outputFile, $dpi);
         shell_exec($exe);
