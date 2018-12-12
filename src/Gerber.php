@@ -49,6 +49,19 @@ class Gerber
         "board" => 500,
         "layers" => 500,
     ];
+
+    private $thumbnails = [
+        "300x300" => [ 'width' => 300,
+                       'height' => 300,
+                       'filter' => \Imagick::FILTER_BOX,
+                       'blur' => 0,
+                       'path' => null],
+        "500x500" => [ 'width' => 500,
+                       'height' => 500,
+                       'filter' => \Imagick::FILTER_BOX,
+                       'blur' => 0,
+                       'path' => null],
+        ];
     
     public function  __construct($zipFile, $imageDir = null)
     {
@@ -76,6 +89,8 @@ class Gerber
 
     public function process()
     {
+        $this->createThumbnailsDir($this->imageTemp."/".$this->imageFolder);
+
         $image = $this->genImage();
         $size = $this->determineSize($this->files);
         
@@ -372,6 +387,17 @@ class Gerber
         return $rand;
     }
 
+    private function createThumbnailsDir($base)
+    {
+        foreach($this->thumbnails as $dir => $params)
+        {
+            $folder = $base.'/'.$dir;
+            //possibly unsafe
+            mkdir($folder, 0777, true);
+            $this->thumbnails[$dir]['path'] = $folder;
+        }
+    }
+
     private function removeDir($folder)
     {
         $handle = opendir($folder);
@@ -461,8 +487,53 @@ class Gerber
             $im = new \Imagick($this->imageTemp."/".$this->imageFolder."/".$outputFile);
             $im->trimImage(0);
             $im->writeImage();
+            $im->clear();
         }
+
+        $this->renderThumbnails($this->imageTemp."/".$this->imageFolder, $outputFile);
+
         return "/".$this->imageFolder."/".$outputFile;
+    }
+
+    private function renderThumbnails($imageFolder, $filename)
+    {
+        foreach($this->thumbnails as $dir => $params)
+        {
+            $im = new \Imagick($imageFolder."/".$filename);
+            $resizeTo = $this->determineResizeDimensions($im->getImageWidth(), $im->getImageHeight(), $params['width'], $params['height']);
+            $im->resizeImage($resizeTo['width'], $resizeTo['height'], $params['filter'], $params['blur']); //resize while keeping aspect ratio
+            $dw = ceil(($params['width']-$resizeTo['width'])/2); //border width
+            $dh = ceil(($params['height']-$resizeTo['height'])/2); //border height
+            $im->borderImage($this->background, $dw, $dh); //fill image to desired width and height
+            $im->setImagePage(0, 0, 0, 0);
+            //if image has odd number of pixels then border adds one pixel
+            //more than needed, image is croped to remove it
+            $im->cropImage($params['width'], $params['height'], 0, 0);
+            $im->writeImage($params['path']."/".$filename);
+            $im->clear();
+        }
+    }
+
+    public function determineResizeDimensions($currentWidth, $currentHeight, $maxWidth, $maxHeight)
+    {
+        $s = 1; //scale factor
+        $pw = $maxWidth/$currentWidth;
+        $ph = $maxHeight/$currentHeight;
+
+        if($pw < $ph)
+        {
+            $s = $pw;
+        }
+        else
+        {
+            $s = $ph;
+        }
+
+        return [
+            'height' => round($currentHeight*$s),
+            'width' => round($currentWidth*$s),
+            's' => $s
+        ];
     }
     
     private function genExec($files, $output, $dpi)
