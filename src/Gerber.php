@@ -18,7 +18,7 @@ class Gerber
     private $layers = null;
     private $image = null;
     private $imageLayers = null;
-
+    private $imageThumbnails = null;
 
     private $files = null;
 
@@ -26,11 +26,7 @@ class Gerber
     private $background = "#f8fafc";
 
     //colors that top and bottom images will be rendered in
-    private $boardRenderColors = [
-        "green" => "#00FF00",
-        "blue" => "#0000FF",
-        "yellow" => "#FFFF00",
-    ];
+    private $boardRenderColors = [];
 
     private $layerRenderColors = [
         "slots" => "#000000",
@@ -50,18 +46,7 @@ class Gerber
         "layers" => 500,
     ];
 
-    private $thumbnails = [
-        "300x300" => [ 'width' => 300,
-                       'height' => 300,
-                       'filter' => \Imagick::FILTER_BOX,
-                       'blur' => 0,
-                       'path' => null],
-        "500x500" => [ 'width' => 500,
-                       'height' => 500,
-                       'filter' => \Imagick::FILTER_BOX,
-                       'blur' => 0,
-                       'path' => null],
-        ];
+    private $thumbnails = [];
     
     public function  __construct($zipFile, $imageDir = null)
     {
@@ -89,17 +74,27 @@ class Gerber
 
     public function process()
     {
+        if(count($this->boardRenderColors) === 0)
+        {
+            throw new \Exception("No color for rendering top and bottom is set.");
+        }
+        
         $this->createThumbnailsDir($this->imageTemp."/".$this->imageFolder);
 
         $image = $this->genImage();
+        $this->image = $image["board"]["full"];
+        $this->imageLayers = $image["layers"]["full"];
+        $this->imageThumbnails = [
+            'board' => $image["board"]["thumbnails"],
+            'layers' => $image["layers"]["thumbnails"],
+        ];
         $size = $this->determineSize($this->files);
         
-        $imgSize = $this->determineSizeFromImage($image);
+        $imgSize = $this->determineSizeFromImage();
         $this->size = ['file' => $size,
                        'image' => $imgSize];
         
-        $this->image = $image["board"];
-        $this->imageLayers = $image["layers"];
+
     }
 
     public function setBoardDPI($dpi)
@@ -168,6 +163,36 @@ class Gerber
         return false;
     }
 
+    public function setThumbnailSize($width, $height, $blur = 0, $filter = \Imagick::FILTER_BOX)
+    {
+        return $this->thumbnails[$width."x".$height] = [ 'width' => $width,
+                                                         'height' => $height,
+                                                         'filter' => $filter,
+                                                         'blur' => $blur,
+                                                         'path' => null];
+    }
+
+    public function getThumbnailSize($width, $height)
+    {
+        $key = $width."x".$height;
+        if(array_key_exists($key))
+        {
+            return $this->thumbnails[$key];
+        }
+        return null;
+    }
+
+    public function removeThumbnailSize($widht, $height)
+    {
+        $key = $width."x".$height;
+        if(array_key_exists($key))
+        {
+            unset($this->thumbnails[$key]);
+            return true;
+        }
+        return false;
+    }
+
     public function getBackground()
     {
         return $this->background;
@@ -197,7 +222,12 @@ class Gerber
     public function getImagesByLayers()
     {
         return $this->imageLayers;
-    } 
+    }
+
+    public function getThumbnails()
+    {
+        return $this->imageThumbnails;
+    }
 
     private function determineSize()
     {
@@ -252,12 +282,12 @@ class Gerber
         return null;
     }
 
-    private function determineSizeFromImage(&$images)
+    private function determineSizeFromImage()
     {
-        if(array_key_exists('outline', $images['layers']))
+        if(array_key_exists('outline', $this->imageLayers))
         {
             $dpi = $this->dpi["layers"];
-            return $this->sizeFromImage($images['layers']['outline'], $dpi);
+            return $this->sizeFromImage($this->imageLayers['outline'], $dpi);
         }
         else
         {
@@ -265,7 +295,7 @@ class Gerber
             /*print_r($this->sizeFromImage($images['board']['top']));
               print_r($this->sizeFromImage($images['board']['bottom']));*/
             $dpi = $this->dpi["board"];
-            return $this->sizeFromImage($images['board'][key($images['board'])]['top'], $dpi);
+            return $this->sizeFromImage($this->image[key($this->image)]['top'], $dpi);
         }
     }
 
@@ -437,14 +467,18 @@ class Gerber
                          "top paste" => "#B87333",
                          "top solder" => $colorCode,
                          "top" => $colorCode,];
-            $boardImages[$color]["top"] = $this->renderImage($topOrder, "board_top_".$color.".png", $dpi, true);
+            $filename = "board_top_".$color.".png";
+            $boardImages["full"][$color]["top"] = $this->renderImage($topOrder, $filename, $dpi, true);
+            $boardImages["thumbnails"][$color]["top"] = $this->renderThumbnails($this->imageTemp."/".$this->imageFolder, $filename);
 
             //render bottom
             $bottomOrder = ["bottom silk" =>  $this->background,
                             "bottom paste" =>  "#B87333",
                             "bottom solder" => $colorCode,
                             "bottom" => $colorCode,];
-            $boardImages[$color]["bottom"] = $this-> renderImage($bottomOrder, "board_bottom_".$color.".png", $dpi, true);
+            $filename = "board_bottom_".$color.".png";
+            $boardImages["full"][$color]["bottom"] = $this-> renderImage($bottomOrder, $filename, $dpi, true);
+            $boardImages["thumbnails"][$color]["bottom"] = $this->renderThumbnails($this->imageTemp."/".$this->imageFolder, $filename);
         }
 
         return $boardImages;
@@ -460,7 +494,8 @@ class Gerber
                 continue;
             $filename = str_replace(" ", "_", $layer).".png";
             $img = $this->renderImage([$layer => $color], $filename, $dpi);
-            $layerImages[$layer] = $img;
+            $layerImages["full"][$layer] = $img;
+            $layerImages["thumbnails"][$layer] = $this->renderThumbnails($this->imageTemp."/".$this->imageFolder, $filename);
         }
 
         return $layerImages;
@@ -490,31 +525,32 @@ class Gerber
             $im->clear();
         }
 
-        $this->renderThumbnails($this->imageTemp."/".$this->imageFolder, $outputFile);
-
         return "/".$this->imageFolder."/".$outputFile;
     }
 
-    private function renderThumbnails($imageFolder, $filename)
+    private function renderThumbnails($imagePath, $filename)
     {
+        $images = array();
         foreach($this->thumbnails as $dir => $params)
         {
-            $im = new \Imagick($imageFolder."/".$filename);
+            $im = new \Imagick($imagePath."/".$filename);
             $resizeTo = $this->determineResizeDimensions($im->getImageWidth(), $im->getImageHeight(), $params['width'], $params['height']);
             $im->resizeImage($resizeTo['width'], $resizeTo['height'], $params['filter'], $params['blur']); //resize while keeping aspect ratio
             $dw = ceil(($params['width']-$resizeTo['width'])/2); //border width
             $dh = ceil(($params['height']-$resizeTo['height'])/2); //border height
-            $im->borderImage($this->background, $dw, $dh); //fill image to desired width and height
+            $im->borderImage("#FFFFFF00", $dw, $dh); //fill image to desired width and height with white fully transparent color
             $im->setImagePage(0, 0, 0, 0);
             //if image has odd number of pixels then border adds one pixel
             //more than needed, image is croped to remove it
             $im->cropImage($params['width'], $params['height'], 0, 0);
             $im->writeImage($params['path']."/".$filename);
             $im->clear();
+            $images[$dir] = "/".$this->imageFolder."/".$dir."/".$filename;
         }
+        return $images;
     }
 
-    public function determineResizeDimensions($currentWidth, $currentHeight, $maxWidth, $maxHeight)
+    private function determineResizeDimensions($currentWidth, $currentHeight, $maxWidth, $maxHeight)
     {
         $s = 1; //scale factor
         $pw = $maxWidth/$currentWidth;
