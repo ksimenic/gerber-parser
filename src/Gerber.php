@@ -82,11 +82,15 @@ class Gerber
         $this->createThumbnailsDir($this->imageTemp."/".$this->imageFolder);
 
         $image = $this->genImage();
-        $this->image = $image["board"]["full"];
-        $this->imageLayers = $image["layers"]["full"];
+        if(array_key_exists("full", $image["board"]))
+            $this->image = $image["board"]["full"];
+
+        if(array_key_exists("full", $image["layers"]))
+            $this->imageLayers = $image["layers"]["full"];
+
         $this->imageThumbnails = [
-            'board' => $image["board"]["thumbnails"],
-            'layers' => $image["layers"]["thumbnails"],
+            'board' => array_key_exists("thumbnails", $image["board"]) ? $image["board"]["thumbnails"] : array(),
+            'layers' => array_key_exists("thumbnails", $image["layers"]) ? $image["layers"]["thumbnails"] : array(),
         ];
         $size = $this->determineSize($this->files);
         
@@ -163,7 +167,7 @@ class Gerber
         return false;
     }
 
-    public function setThumbnailSize($width, $height, $blur = 0, $filter = \Imagick::FILTER_BOX)
+    public function setThumbnailSize($width, $height, $blur = 1, $filter = \Imagick::FILTER_BOX)
     {
         return $this->thumbnails[$width."x".$height] = [ 'width' => $width,
                                                          'height' => $height,
@@ -284,7 +288,7 @@ class Gerber
 
     private function determineSizeFromImage()
     {
-        if(array_key_exists('outline', $this->imageLayers))
+        if($this->imageLayers && array_key_exists('outline', $this->imageLayers))
         {
             $dpi = $this->dpi["layers"];
             return $this->sizeFromImage($this->imageLayers['outline'], $dpi);
@@ -295,7 +299,14 @@ class Gerber
             /*print_r($this->sizeFromImage($images['board']['top']));
               print_r($this->sizeFromImage($images['board']['bottom']));*/
             $dpi = $this->dpi["board"];
-            return $this->sizeFromImage($this->image[key($this->image)]['top'], $dpi);
+            if($this->image)
+            {
+                return $this->sizeFromImage($this->image[key($this->image)]['top'], $dpi);
+            }
+            else
+            {
+                return 0;
+            }
         }
     }
 
@@ -460,6 +471,10 @@ class Gerber
     {
         $boardImages = array();
         $dpi = $this->dpi["board"];
+        if(!($this->files["top silk"] || $this->files["top paste"] || $this->files["top solder"] || $this->files["top"]))
+        {
+            return $boardImages;
+        }
         foreach($this->boardRenderColors as $color => $colorCode)
         {
             //render top
