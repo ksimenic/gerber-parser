@@ -553,7 +553,7 @@ class Gerber
             $im->resizeImage($resizeTo['width'], $resizeTo['height'], $params['filter'], $params['blur']); //resize while keeping aspect ratio
             $dw = ceil(($params['width']-$resizeTo['width'])/2); //border width
             $dh = ceil(($params['height']-$resizeTo['height'])/2); //border height
-            $im->borderImage("#FFFFFF00", $dw, $dh); //fill image to desired width and height with white fully transparent color
+            $im->borderImage(new \ImagickPixel('rgba(255,255,255,1)'), $dw, $dh); //fill image to desired width and height with white fully transparent color
             $im->setImagePage(0, 0, 0, 0);
             //if image has odd number of pixels then border adds one pixel
             //more than needed, image is croped to remove it
